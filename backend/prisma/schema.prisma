@@ -20,6 +20,7 @@ model Product {
   driveFolderId String @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  files   File[]
 }
 
 enum Role{
@@ -45,4 +46,58 @@ model RefreshToken{
   expiresAt DateTime
   revoked Boolean @default(false)
   createdAt DateTime @default(now())
+}
+
+model File {
+  id      String    @id @default(uuid())
+  driveFileId String @unique
+  name String 
+  mimeType String
+  webViewLink String
+  size  BigInt?
+  modifiedTime DateTime
+  title String?
+  description String?
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category Category?@relation(fields: [categoryId], references: [id])
+  fileTags FileTag[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SyncHistory{
+  id  String  @id @default(uuid())
+  productId String
+  filesFound Int
+  filesCreated Int
+  filesUpdated Int
+  status String
+  errorMessage String?
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+}
+
+model Category {
+  id String @id @default(uuid())
+  name String @unique
+  files File[]
+  createdAt DateTime @default(now())
+}
+
+model Tag{
+  id String @id @default(uuid())
+  name String @unique
+  fileTags FileTag[]
+  createdAt DateTime @default(now())
+}
+
+model FileTag {
+  fileId String
+  tagId String
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([fileId, tagId])
 }

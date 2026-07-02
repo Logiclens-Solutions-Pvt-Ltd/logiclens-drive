@@ -42,4 +42,10 @@ export class ProductsController {
     remove(@Param('id') id: string){
         return this.productsService.remove(id);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/sync')
+    syncFiles(@Param('id') id: string){
+        return this.productsService.syncFiles(id);
+    }
 }

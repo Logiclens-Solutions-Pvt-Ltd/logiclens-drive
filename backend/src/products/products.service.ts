@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DriveService } from '../drive/drive.service';
+import { Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class ProductsService {
@@ -11,8 +12,16 @@ export class ProductsService {
         private driveService: DriveService
     ){}
 
-    create(dto: CreateProductDto){
-        return this.prisma.product.create({ data: dto});
+    async create(dto: CreateProductDto){
+        try{
+            return await this.prisma.product.create({ data: dto}); 
+        }
+        catch (error){
+            if( error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'){
+                throw new ConflictException('A product with this Drive folder is already registered');
+            }
+            throw error;
+        }
     }
 
     findAll(){
@@ -42,5 +51,66 @@ export class ProductsService {
     async findFiles(id: string){
         const product = await this.findOne(id);
         return this.driveService.listFilesInFolder(product.driveFolderId);
+    }
+
+    async syncFiles(productId: string){
+        const product = await this.findOne(productId);
+
+        const syncRecord = await this.prisma.syncHistory.create({
+            data: { productId, filesFound: 0, filesCreated: 0, filesUpdated: 0, status: 'IN_PROGRESS'},
+        });
+
+        let filesCreated = 0;
+        let filesUpdated = 0;
+
+        try{
+            const driveFiles = await this.driveService.listFilesInFolder(product.driveFolderId);
+
+            for(const driveFile of driveFiles){
+                const existing = await this.prisma.file.findUnique({
+                    where: { driveFileId: driveFile.id as string },
+                });
+
+                const data = {
+                    name: driveFile.name as string,
+                    mimeType: driveFile.mimeType as string,
+                    webViewLink: driveFile.webViewLink as string,
+                    size: driveFile.size ? BigInt(driveFile.size) : null,
+                    modifiedTime: new Date(driveFile.modifiedTime as string),
+                };
+
+                if(existing){
+                    await this.prisma.file.update({ where: {id: existing.id }, data});
+                    filesUpdated++;
+                } else {
+                    await this.prisma.file.create({data : {...data, driveFileId: driveFile.id as string, productId}, });
+                    filesCreated++;
+                }
+            } 
+
+            await this.prisma.syncHistory.update({
+                where: { id: syncRecord.id },
+                data: {
+                    status: 'SUCCESS',
+                    filesFound: driveFiles.length,
+                    filesCreated,
+                    filesUpdated,
+                    finishedAt: new Date(),
+                },
+            });
+
+            return { status: 'SUCCESS', filesFound: driveFiles.length, filesCreated, filesUpdated };
+
+        } catch (error){
+            await this.prisma.syncHistory.update({
+                where: {id: syncRecord.id},
+                data: {
+                    status: 'FAILED',
+                    errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                    finishedAt: new Date(),
+                },
+            });
+            throw error;
+        }
     }
 }
