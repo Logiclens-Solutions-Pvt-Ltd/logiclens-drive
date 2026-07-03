@@ -50,7 +50,12 @@ export class ProductsService {
 
     async findFiles(id: string){
         const product = await this.findOne(id);
-        return this.driveService.listFilesInFolder(product.driveFolderId);
+        // return this.driveService.listFilesInFolder(product.driveFolderId);
+        return this.prisma.file.findMany({
+            where: { productId: id, deletedAt: null },
+            include: {category: true, fileTags: {include: {tag: true }}},
+            orderBy: {modifiedTime: 'desc'},
+        });
     }
 
     async syncFiles(productId: string){

@@ -1,0 +1,8 @@
+export interface Product {
+    id: string;
+    name: string;
+    description: string | null;
+    driveFolderId: string;
+    createdAt: string;
+    updatedAt: string;
+}

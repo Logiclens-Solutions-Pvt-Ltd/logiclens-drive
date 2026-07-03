@@ -10,6 +10,41 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dam_user -d dam_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://dam_user:dam_dev_password@postgres:5432/dam_db?schema=public"
+      JWT_ACCESS_SECRET: "Cu2kxMB9GZGvmUHCh48AXDwHn4qm3nYMTqL7cFzMK41"
+      JWT_REFRESH_SECRET: "kaeLi95BaO1J5n7o3wqSoUWHIcjvT7Sf8tlcIekvLNo"
+      GOOGLE_SERVICE_ACCOUNT_KEY_PATH: "/app/google-service-account.json"
+    volumes:
+      - ../backend/google-service-account.json:/app/google-service-account.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+  
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:3000"
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

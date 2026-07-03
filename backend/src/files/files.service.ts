@@ -18,7 +18,7 @@ export class FilesService {
             where: {
                 AND: [
                     {deletedAt: null},
-                    query? { name: {contains: query, mode: 'insensitive'}}: {},
+                    query? { OR: [ {name: {contains: query, mode: 'insensitive'}}, { title: {contains: query, mode: 'insensitive'},}]}: {},
                     category? {category: {name : {equals: category, mode: 'insensitive'}}} : {},
                     tag ? {fileTags: { some: {tag: {name: {equals: tag, mode: 'insensitive'}}}}} : {},
                     productId ? { productId } : {},
