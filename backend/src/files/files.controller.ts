@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Post, Query, Param, Res, Req, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Post, Query, Param, Res, Req, Body, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FilesService } from './files.service';
@@ -6,6 +6,9 @@ import { Response } from 'express';
 import { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { useContainer } from 'class-validator';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express'; 
+import multer from 'multer';
 
 @Controller('files')
 export class FilesController {
@@ -30,6 +33,12 @@ export class FilesController {
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', 'inline');
         stream.pipe(res);
+    }
+
+    //@UseGuards(OptionalJwtAuthGuard)
+    @Get(':id/preview-url')
+    async getPreviewUrl(@Param('id') id: string, @Req() req: Request) {
+        return this.filesService.getPreviewData(id, !!req.user);
     }
 
     @UseGuards(OptionalJwtAuthGuard)
@@ -64,5 +73,6 @@ export class FilesController {
     listTrash(){
         return this.filesService.listTrash();
     }
+
 
 }

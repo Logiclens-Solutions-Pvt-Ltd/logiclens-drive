@@ -1,8 +1,13 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, Query, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../auth/decoraters/roles.decorater';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Express } from 'express'; 
+import multer from 'multer';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('products')
 export class ProductsController {
@@ -32,8 +37,11 @@ export class ProductsController {
     }
 
     @Get(':id/files')
-    async findFiles(@Param('id') id: string){
-        return this.productsService.findFiles(id);
+    async findFiles(
+        @Param('id') id: string, 
+        @Query('parentId') parentId?: string // ADDED THIS
+    ){
+        return this.productsService.findFiles(id, parentId);
     }
     
     @UseGuards(JwtAuthGuard)
@@ -52,5 +60,23 @@ export class ProductsController {
     @Post(':id/sync')
     syncFiles(@Param('id') id: string){
         return this.productsService.syncFiles(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN') // ONLY ADMINS CAN RUN HIERARCHY SYNC
+    @Post(':id/sync-hierarchy')
+    syncHierarchy(@Param('id') id: string) {
+        return this.productsService.syncHierarchy(id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/upload')
+    @UseInterceptors(FilesInterceptor('files'))
+    async uploadFiles(
+        @Param('id') id: string,
+        @UploadedFiles() files: Express.Multer.File[],
+    ) {
+        const filesArray = Array.isArray(files) ? files : [files];
+        return this.productsService.uploadFilesToProduct(id, filesArray);
     }
 }

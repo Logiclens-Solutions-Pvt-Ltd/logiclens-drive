@@ -73,6 +73,28 @@ export class FilesService {
         return { stream, mimeType: file.mimeType, name: file.name};
     }
 
+    async getPreviewData(id: string, isAuthenticated: boolean) {
+        const file = await this.findActiveFile(id);
+        if (file.visibility === 'PRIVATE' && !isAuthenticated) {
+            throw new ForbiddenException('This file is private');
+        }
+
+        // Fetch the native Google Drive preview URL
+        const previewUrl = await this.driveService.getNativePreviewUrl(file.driveFileId);
+        
+        // Fetch the service account's role on this file
+        const role = await this.driveService.getMyPermission(file.driveFileId);
+
+        return { 
+            previewUrl, 
+            mimeType: file.mimeType, 
+            name: file.name,
+            role // e.g., 'owner', 'reader'
+        };
+    }
+
+    
+
     async update(id: string, dto: UpdateFileDto){
         await this.findActiveFile(id);
 

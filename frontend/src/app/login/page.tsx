@@ -9,7 +9,7 @@ import { login } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { FolderOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,98 +33,94 @@ export default function LoginPage() {
   const onSubmit = (values: LoginFormValues) => mutation.mutate(values);
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-[var(--teal)] via-[#14171C] to-[var(--ink)]">
+    // Drive Background: Plain, light grey
+     <div className="min-h-screen flex items-center justify-center bg-[#f1f3f4] dark:bg-[#202124] px-4">
       
-      {/* Animated Background Elements */}
-      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-[var(--teal)]/20 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-[var(--amber)]/10 blur-[100px] rounded-full" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] blur-3xl rounded-full" />
-
-      {/* Login Card */}
-      <div className="relative z-10 w-full max-w-md mx-4 animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
+      
+      <div className="w-full max-w-md bg-white dark:bg-[#2d2e30] border border-[#dadce0] dark:border-[#5f6368] rounded-lg p-10 shadow-sm">
         
-        <div className="bg-[var(--paper)] rounded-2xl shadow-2xl border border-[var(--line)] p-8 md:p-10">
+        
+        <div className="flex flex-col items-center text-center mb-8">
           
-          {/* Header / Branding Area (Replaces the weird orange tag) */}
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="mb-4 p-3 bg-[var(--teal)]/10 rounded-2xl">
-              <FolderOpen className="h-7 w-7 text-[var(--teal)]" />
-            </div>
-            <h1 className="font-display text-3xl font-bold text-[var(--ink)] tracking-tight">
-              Welcome back
-            </h1>
-            <p className="text-sm text-[var(--muted)] mt-2 font-body">
-              Sign in to access your company&apos;s asset archive.
-            </p>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-[var(--ink)]">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@logiclens.com"
-                {...register('email')}
-                className="h-11 border-[var(--line)] bg-white focus-visible:ring-[var(--teal)] focus-visible:border-[var(--teal)]"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500 font-medium">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-[var(--ink)]">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                {...register('password')}
-                className="h-11 border-[var(--line)] bg-white focus-visible:ring-[var(--teal)] focus-visible:border-[var(--teal)]"
-              />
-              {errors.password && (
-                <p className="text-sm text-red-500 font-medium">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Global Error State */}
-            {mutation.isError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 font-medium">
-                Invalid email or password. Please try again.
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <Button 
-              type="submit" 
-              disabled={mutation.isPending}
-              className="w-full h-11 bg-[var(--ink)] hover:bg-[var(--ink])/90 text-[var(--paper)] font-semibold text-sm rounded-lg transition-all active:scale-[0.98]"
-            >
-              {mutation.isPending ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Signing in...
-                </span>
-              ) : (
-                'Sign in'
-              )}
-            </Button>
-          </form>
-          
-          {/* Footer inside card */}
-          <div className="mt-8 pt-6 border-t border-[var(--line)] text-center">
-            <p className="text-xs text-[var(--muted)]">
-              © {new Date().getFullYear()} LogicLens. All rights reserved.
-            </p>
-          </div>
-
+          <img 
+            src="/logo.png" 
+            alt="LogicLens Logo" 
+            className="h-12 w-12 object-contain mb-4"
+          />
+          <h1 className="text-2xl font-normal text-[#202124] dark:text-[#e8eaed]">Sign in</h1>
+          <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-1">Use your LogicLens Account</p>
         </div>
+
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-sm font-medium text-[#202124]">
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@logiclens.com"
+              {...register('email')}
+              // Drive Input Style: Tall, grey border, blue on focus
+              className="h-12 border-[#dadce0] dark:border-[#5f6368] bg-white dark:bg-[#3c4043] focus-visible:ring-0 focus-visible:border-[#1a73e8] dark:focus-visible:border-[#8ab4f8] text-[#202124] dark:text-[#e8eaed] rounded-md"
+            />
+            {errors.email && (
+              <p className="text-sm text-[#d93025]">{errors.email.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="password" className="text-sm font-medium text-[#202124]">
+              Password
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              {...register('password')}
+              className="h-12 border-[#dadce0] dark:border-[#5f6368] bg-white dark:bg-[#3c4043] focus-visible:ring-0 focus-visible:border-[#1a73e8] dark:focus-visible:border-[#8ab4f8] text-[#202124] dark:text-[#e8eaed] rounded-md"
+            />
+            {errors.password && (
+              <p className="text-sm text-[#d93025]">{errors.password.message}</p>
+            )}
+          </div>
+
+         
+          {mutation.isError && (
+            <div className="flex items-center gap-2 text-sm text-[#d93025] pt-2">
+              <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+              </svg>
+              Invalid email or password. Please try again.
+            </div>
+          )}
+
+          
+          <Button 
+            type="submit" 
+            disabled={mutation.isPending}
+             className="w-full h-12 bg-[#1a73e8] dark:bg-[#8ab4f8] hover:bg-[#1765cc] dark:hover:bg-[#aecbfa] text-white dark:text-[#202124] font-medium text-base rounded-md mt-6"
+          >
+            {mutation.isPending ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Signing in...
+              </span>
+            ) : (
+              'Next'
+            )}
+          </Button>
+        </form>
+        
+        
+        <div className="mt-8 pt-6 border-t border-[#dadce0] text-center">
+          <p className="text-xs text-[#5f6368]">
+            © {new Date().getFullYear()} LogicLens. All rights reserved.
+          </p>
+        </div>
+
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ model Product {
 }
 
 enum Role{
-  AMDIN 
+  ADMIN 
   EMPLOYEE
 }
 
@@ -68,6 +68,28 @@ model File {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+
+  parentId    String?
+  parent      File?     @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children    File[]    @relation("FolderHierarchy")
+  driveRole   String?   // Will store: 'owner', 'organizer', 'writer', 'reader', 'commenter'
+  isFolder    Boolean   @default(false) // Explicit flag to easily query folders
+}
+
+// Stores the OAuth tokens for the single Google account that Drive uploads
+// are performed as (a real user account has storage quota; a bare service
+// account does not, which is why uploads were failing before).
+// This is a singleton table: there is only ever one row, with id "singleton".
+model GoogleOAuthToken {
+  id           String    @id @default("singleton")
+  accessToken  String?
+  refreshToken String?
+  expiryDate   DateTime?
+  scope        String?
+  tokenType    String?
+  accountEmail String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model SyncHistory{

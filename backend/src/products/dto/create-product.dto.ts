@@ -11,5 +11,5 @@ export class CreateProductDto {
 
     @IsString()
     @IsNotEmpty()
-    driveFolderId: string;
+    driveFolderLink: string;
 }

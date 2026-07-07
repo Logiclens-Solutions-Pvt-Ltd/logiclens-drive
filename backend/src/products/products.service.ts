@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DriveService } from '../drive/drive.service';
 import { Prisma } from '../../generated/prisma/client';
+import { UpdateFileDto } from '../files/dto/update-file.dto';
+import { Express } from 'express';
 
 @Injectable()
 export class ProductsService {
@@ -12,15 +14,57 @@ export class ProductsService {
         private driveService: DriveService
     ){}
 
-    async create(dto: CreateProductDto){
-        try{
-            return await this.prisma.product.create({ data: dto}); 
+        // Replace this exact method in product.service.ts
+    private extractFolderId(input: string): string {
+        if (!input) throw new BadRequestException('Google Drive link is required');
+
+        const trimmed = input.trim();
+
+        // 1. If the user just pasted the raw ID itself (e.g., "1aBcDeFg... ")
+        if (/^[0-9a-zA-Z_-]{25,}$/.test(trimmed)) {
+            return trimmed;
         }
-        catch (error){
-            if( error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'){
-                throw new ConflictException('A product with this Drive folder is already registered');
+
+        try {
+            const url = new URL(trimmed);
+            
+            // 2. Check for ?id= or &id= parameter (handles ?usp=sharing links perfectly)
+            const idFromParams = url.searchParams.get('id');
+            if (idFromParams && /^[0-9a-zA-Z_-]{25,}$/.test(idFromParams)) {
+                return idFromParams;
             }
-            throw error;
+
+            // 3. Check pathname for standard formats like /folders/... or /file/d/...
+            const pathRegex = /\/(?:folders|file\/d|open)\/([0-9a-zA-Z_-]{25,})/;
+            const pathMatch = url.pathname.match(pathRegex);
+            if (pathMatch && pathMatch[1]) {
+                return pathMatch[1];
+            }
+            
+        } catch (error) {
+            // Not a valid URL structure, will fall through to final fallback
+        }
+
+        // 4. Final Fallback: Just find any long alphanumeric string in the pasted text
+        const fallbackMatch = trimmed.match(/([0-9a-zA-Z_-]{25,})/);
+        if (fallbackMatch && fallbackMatch[1]) {
+            return fallbackMatch[1];
+        }
+
+        throw new BadRequestException('Could not extract a valid Google Drive ID from the provided link');
+    }
+
+    async create(dto: CreateProductDto) {
+        const driveFolderId = this.extractFolderId(dto.driveFolderLink);
+        try {
+        return await this.prisma.product.create({
+            data: { name: dto.name, description: dto.description, driveFolderId },
+        });
+        } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            throw new ConflictException('A product with this Drive folder is already registered');
+        }
+        throw error;
         }
     }
 
@@ -48,13 +92,25 @@ export class ProductsService {
         return this.prisma.product.delete({ where: {id}});
     }
 
-    async findFiles(id: string){
-        const product = await this.findOne(id);
-        // return this.driveService.listFilesInFolder(product.driveFolderId);
+    async findFiles(productId: string, parentId?: string) {
+        await this.findOne(productId); // Ensure product exists
+
         return this.prisma.file.findMany({
-            where: { productId: id, deletedAt: null },
-            include: {category: true, fileTags: {include: {tag: true }}},
-            orderBy: {modifiedTime: 'desc'},
+            where: {
+                productId: productId,
+                deletedAt: null,
+                // If parentId is provided, get its children. If null/undefined, get root files.
+                parentId: parentId || null, 
+            },
+            include: {
+                category: true, 
+                fileTags: { include: { tag: true } }
+            },
+            // CRITICAL: Sort folders first (true=1), then alphabetical by name
+            orderBy: [
+                { isFolder: 'desc' }, 
+                { name: 'asc' }
+            ]
         });
     }
 
@@ -119,6 +175,157 @@ export class ProductsService {
         }
     }
 
+     /**
+     * CHUNK 2: Recursive Hierarchy Sync
+     * Maps Google Drive parent-child relationships into the database.
+     */
+    async syncHierarchy(productId: string) {
+        const product = await this.findOne(productId);
+
+        // We must fetch FLAT, including nested folders, along with their 'parents'
+        // Note: You need to change DriveService to recursively get ALL files in subfolders too.
+        // For now, assuming listFilesInFolder gets everything as it did before.
+        const driveFiles = await this.driveService.listAllFilesRecursive(product.driveFolderId);
+
+        const driveIdToUuidMap = new Map<string, string>();
+        let filesCreated = 0;
+        let filesUpdated = 0;
+
+        // STEP 1: Process all FOLDERS first to establish UUIDs for parent mapping
+        const folders = driveFiles.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+        for (const folder of folders) {
+            const driveFolderId = folder.id as string;
+            
+            // Check permissions
+            const driveRole = await this.driveService.getMyPermission(driveFolderId);
+
+            const existing = await this.prisma.file.findUnique({
+                where: { driveFileId: driveFolderId }
+            });
+
+            const data = {
+                name: folder.name as string,
+                mimeType: folder.mimeType as string,
+                webViewLink: folder.webViewLink as string,
+                modifiedTime: new Date(folder.modifiedTime as string),
+                isFolder: true,
+                driveRole: driveRole,
+                parentId: null as string | null, // Will be updated in step 2 if nested
+            };
+
+            if (existing) {
+                await this.prisma.file.update({ where: { id: existing.id }, data });
+                driveIdToUuidMap.set(driveFolderId, existing.id);
+                filesUpdated++;
+            } else {
+                const created = await this.prisma.file.create({
+                    data: { ...data, driveFileId: driveFolderId, productId }
+                });
+                driveIdToUuidMap.set(driveFolderId, created.id);
+                filesCreated++;
+            }
+        }
+
+        // STEP 2: Process all FILES and link them to their parent folders
+        const files = driveFiles.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+        for (const file of files) {
+            const driveFileId = file.id as string;
+            const driveRole = await this.driveService.getMyPermission(driveFileId);
+
+            // Determine parent UUID using the map we just built
+            // file.parents[0] contains the Drive ID of the parent folder
+            const parentDriveId = file.parents?.[0];
+            const parentUuid = parentDriveId ? driveIdToUuidMap.get(parentDriveId) : null;
+
+            const existing = await this.prisma.file.findUnique({
+                where: { driveFileId }
+            });
+
+            const data = {
+                name: file.name as string,
+                mimeType: file.mimeType as string,
+                webViewLink: file.webViewLink as string,
+                size: file.size ? BigInt(file.size) : null,
+                modifiedTime: new Date(file.modifiedTime as string),
+                driveRole: driveRole,
+                isFolder: false,
+                parentId: parentUuid, // Apply the mapped UUID
+            };
+
+            if (existing) {
+                await this.prisma.file.update({ where: { id: existing.id }, data });
+                filesUpdated++;
+            } else {
+                await this.prisma.file.create({
+                    data: { ...data, driveFileId, productId }
+                });
+                filesCreated++;
+            }
+        }
+
+        // STEP 3: Update nested folder parents (if a folder is inside another folder)
+        for (const folder of folders) {
+            const parentDriveId = folder.parents?.[0];
+            if (parentDriveId && driveIdToUuidMap.has(parentDriveId)) {
+                const folderUuid = driveIdToUuidMap.get(folder.id as string);
+                if (folderUuid) {
+                    await this.prisma.file.update({
+                        where: { id: folderUuid },
+                        data: { parentId: driveIdToUuidMap.get(parentDriveId) }
+                    });
+                }
+            }
+        }
+
+        return { status: 'SUCCESS', filesFound: driveFiles.length, filesCreated, filesUpdated };
+    }
+
+    async uploadFilesToProduct(productId: string, files: Express.Multer.File[]) {
+        const product = await this.findOne(productId);
+
+        if (!Array.isArray(files)) {
+            throw new BadRequestException('No files were found in the upload request. Check your form-data key.');
+        }
+
+        const uploadedFiles = [];
+        console.log(files);
+        console.log(Array.isArray(files));
+        console.log(files.length);
+        
+        for (const file of files) {
+            try {
+                // Upload file to Google Drive
+                const driveResponse = await this.driveService.uploadFile(
+                    product.driveFolderId, 
+                    file.buffer, 
+                    file.mimetype, 
+                    file.originalname
+                );
+
+                // Save metadata to database
+                const newFile = await this.prisma.file.create({
+                    data: {
+                        driveFileId: driveResponse.id,
+                        name: file.originalname,
+                        mimeType: file.mimetype,
+                        webViewLink: driveResponse.webViewLink,
+                        size: BigInt(file.size),
+                        modifiedTime: new Date(),
+                        productId: productId,
+                    }
+                });
+
+                uploadedFiles.push(newFile);
+            } catch (error) {
+                // If one file fails to upload, log it but continue with the rest
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`Failed to upload file ${file.originalname}:`, errorMessage);
+            }
+        }
+
+        return uploadedFiles;
+    }
+
      async getProductThumbnail(productId: string) {
         // 1. Look for specific standard names
         const coverFile = await this.prisma.file.findFirst({
@@ -149,4 +356,6 @@ export class ProductsService {
 
         return firstImage; // Returns { id: "uuid" } or null
     }
+
+     
 }
