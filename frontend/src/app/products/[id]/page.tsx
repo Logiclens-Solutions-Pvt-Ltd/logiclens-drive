@@ -65,6 +65,30 @@ export default function ProductDetailPage() {
     // If the user navigates away quickly, it just cancels the background request.
   }, [currentFolderId, params.id]); 
 
+
+
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`breadcrumb-path:${params.id}`);
+      if (stored) {
+        const parsedPath: { id: string | null; name: string }[] = JSON.parse(stored);
+        const lastId = parsedPath.length > 0 ? parsedPath[parsedPath.length - 1].id : null;
+        if (lastId === currentFolderId) {
+          setBreadcrumbs(parsedPath);
+          return;
+        }
+      }
+    } catch {
+      // Ignore malformed/unavailable sessionStorage data and fall through.
+    }
+    // If we're back at the product root and there's no matching stored path,
+    // make sure the breadcrumbs reset cleanly.
+    if (currentFolderId === null) {
+      setBreadcrumbs([{ id: null, name: 'Root' }]);
+    }
+  }, [currentFolderId, params.id]);
+
   useEffect(() => {
     const handleNavigate = (e: Event) => {
       const customEvent = e as CustomEvent;

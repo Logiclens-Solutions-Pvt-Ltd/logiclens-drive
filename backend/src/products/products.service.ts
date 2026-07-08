@@ -84,7 +84,8 @@ export class ProductsService {
 
     async update(id: string, dto: UpdateProductDto){
         await this.findOne(id);
-        return this.prisma.product.update({ where: {id}, data: dto});
+        const driveFolderId = this.extractFolderId(dto.driveFolderLink);
+        return this.prisma.product.update({ where: {id}, data: { name: dto.name, description: dto.description, driveFolderId }});
     }
 
     async remove(id: string){
@@ -202,9 +203,10 @@ export class ProductsService {
             const existing = await this.prisma.file.findUnique({
                 where: { driveFileId: driveFolderId }
             });
-
+            const title = folder.name.replace(/\.[^/.]+$/, "");
             const data = {
                 name: folder.name as string,
+                title: existing?.title ?? title,  
                 mimeType: folder.mimeType as string,
                 webViewLink: folder.webViewLink as string,
                 modifiedTime: new Date(folder.modifiedTime as string),
@@ -240,9 +242,10 @@ export class ProductsService {
             const existing = await this.prisma.file.findUnique({
                 where: { driveFileId }
             });
-
+            const title = file.name.replace(/\.[^/.]+$/, "");
             const data = {
                 name: file.name as string,
+                title: existing?.title ?? title,
                 mimeType: file.mimeType as string,
                 webViewLink: file.webViewLink as string,
                 size: file.size ? BigInt(file.size) : null,

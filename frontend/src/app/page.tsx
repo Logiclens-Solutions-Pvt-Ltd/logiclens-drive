@@ -55,7 +55,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto flex flex-col min-h-full">
             {/* Drive Style Header */}
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-normal text-[#202124]">My Drive</h1>
+              <h1 className="text-2xl font-normal text-[#202124] dark:text-[#A4DDED]">My Drive</h1>
             </div>
 
             {/* Loading State - Dense Grid */}

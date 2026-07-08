@@ -18,7 +18,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return ( <html lang="en" suppressHydrationWarning>
+  return ( <html lang="en" suppressHydrationWarning className={`${fraunces.variable} ${manrope.variable} ${plexMono.variable}`}>
       <body className="h-screen flex flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
         <ThemeProvider
           attribute="class" // Tells next-themes to add 'dark' class

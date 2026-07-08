@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useIsAuthenticated } from '@/lib/use-is-authenticated';
 import { Home, Search, Settings, Trash2 } from 'lucide-react';
+import { SidebarFolderTree } from '@/components/sidebar-folder-tree';
 
 export function DriveSidebar() {
   const loggedIn = useIsAuthenticated();
@@ -25,6 +26,10 @@ export function DriveSidebar() {
       <Link href="/search" className={linkClass('/search')}>
         <Search className="h-5 w-5" /> Search
       </Link>
+
+      <div className="h-px bg-[#dadce0] dark:bg-[#5f6368] mx-4 my-3"></div>
+      <p className="px-8 text-xs font-medium text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1">Folders</p>
+      <SidebarFolderTree />
       
       {loggedIn && (
         <>

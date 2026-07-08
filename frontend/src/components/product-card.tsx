@@ -78,7 +78,7 @@ export function ProductCard({ product, loggedIn, onEdit, onDelete }: ProductCard
 
       <Link href={`/products/${product.id}`} className="block">
         {/* Thumbnail Container - Changed to aspect-square */}
-        <div className="aspect-square rounded-md bg-[#f1f3f4] mb-3 overflow-hidden flex items-center justify-center">
+        <div className="aspect-square rounded-md bg-[#6082B6] mb-3 overflow-hidden flex items-center justify-center">
           {activeSrc && imageState !== 'error' ? (
             <img 
               src={activeSrc} 
@@ -88,12 +88,12 @@ export function ProductCard({ product, loggedIn, onEdit, onDelete }: ProductCard
               className="block w-full h-full object-cover" 
             />
           ) : (
-            <Folder className="h-16 w-16 text-[#dadce0]" />
+            <Folder className="h-16 w-16 text-[#dadce0] " />
           )}
         </div>
         
         {/* Text Area - Drive uses simple, tight text */}
-        <p className="text-sm text-[#202124] truncate leading-tight">{product.name}</p>
+        <p className="text-sm text-[#202124] dark:text-[#7ED6EE] truncate leading-tight">{product.name}</p>
         <p className="text-xs text-[#5f6368] truncate mt-0.5">{product.description || 'Folder'}</p>
       </Link>
     </div>

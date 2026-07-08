@@ -79,7 +79,7 @@ export function EditFileDialog({fileId, open, onOpenChange, initial}: EditFileDi
 
     return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-7xl w-[50vw]">
         <DialogHeader>
           <DialogTitle>Edit File Metadata</DialogTitle>
         </DialogHeader>
